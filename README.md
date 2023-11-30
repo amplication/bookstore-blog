@@ -53,26 +53,30 @@ In addition to the choice of which write back method to use we need to decide on
 
 Before looking at their respective differences, we'll need to know what `mutable` and `immutable` image tags are. A mutable repository has tags that can be overwritten by a newer image, where as when a repository configuraiton states that tags must be immutable - it can't be overwritten by a newer image. From the options below each options expects _immutable_ tags to be used, if a mutable _tag_ is used the _digest_ strategy should be used.
 
-- `semver`: Updates to the latest version of an image in an image registry while taking into consideration semantic versioning constraints - following the format `X.Y.Z`, where `X` is the major version, `Y` is the minor version and `Z` the patch version. The option can be configured to only bump, to newer minor or patch versions - it also supports pre-release versions through additional configuration. In the example below the application would be updated with newer patch version of the application, but not upgrading when a newer minor or major version is present.
+- `semver`: Updates the application to the latest version of an image in an image registry while taking into consideration semantic versioning constraints - following the format `X.Y.Z`, where `X` is the major version, `Y` is the minor version and `Z` the patch version. The option can be configured to only bump, to newer minor or patch versions - it also supports pre-release versions through additional configuration. In the example below the application would be updated with newer patch version of the application, but not upgrading when a newer minor or major version is present.
 
-    syntax:
     ```yaml
-    argocd-image-updater.argoproj.io/<image-name>.update-strategy: semver
-    argocd-image-updater.argoproj.io/image-list: <repository-name>/<image-name>[:<version_constraint>]
+    argocd-image-updater.argoproj.io/<alias>.update-strategy: semver
+    argocd-image-updater.argoproj.io/image-list: <alias>=<repository-name>/<image-name>[:<version_constraint>]
     ```
 
-    example:
+- `latest`: Updates the application with the image that has the most recent build date. When a specific build has multiple tags Argo CD Image Updater will pick the lexically descending sorted last tag in the list. Optionally if you want to consider only certain tags, an annotation with a regular expression can be used. Similarly an annotation can be used to ignore a list of tags.
+
     ```yaml
-    argocd-image-updater.argoproj.io/example.update-strategy: semver
-    argocd-image-updater.argoproj.io/image-list: ghcr.io/example:2.5.x
+    argocd-image-updater.argoproj.io/<alias>.update-strategy: latest
+    argocd-image-updater.argoproj.io/image-list: <alias>=<repository-name>/<image-name>
     ```
 
-- `latest`:
+- `digest`: Updates the application based on a change for a muttable tag within the registry. When this strategy is used image digests will be used for updating the application, so the image on the cluster for `<repository-name>/<image-name>:<tag_name>` will appear as `<repository-name>/<image-name>@sha256:<hash>`.
 
+    ```yaml
+    argocd-image-updater.argoproj.io/<alias>.update-strategy: digest
+    argocd-image-updater.argoproj.io/image-list: <alias>=<repository-name>/<image-name>:<tag_name>
+    ```
 
-- `digest`:
+- `name`: Updates the application based on a lecixal sort of the image tags and uses the last tag in the sorted list. Which could be used when using date/time for tagging images. Similar to the latest strategy, a regular expression can be used to consider only specific tags.
 
-
-- `name`:
-
-
+    ```yaml
+    argocd-image-updater.argoproj.io/<alias>.update-strategy: name
+    argocd-image-updater.argoproj.io/image-list: <alias>=<repository-name>/<image-name>
+    ```
