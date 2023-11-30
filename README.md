@@ -30,6 +30,8 @@ Compared to the default process, in this extended variant another Argo CD compon
 
 ## implementation:
 
+Before the technical implementation we'll familiarize ourself with the configuration options Argo CD Image Updater provides. This configuration can be found in two concepts, the `write back method` and `update strategy`. Both have options tailored to specific situation, so it is good to understand what the options are and how that equates to the technical implementation.
+
 **Write back methods**
 
 At the moment of writing Argo CD Image Updater supports two methods of propagating the new versions of the images to Argo CD. These methods also refered to as _write back_ methods are `argocd` & `git`. 
@@ -43,7 +45,7 @@ At the moment of writing Argo CD Image Updater supports two methods of propagati
     ```
 
 > [!NOTE]
-> When using the `git` write back method, credentials configured for Argo CD will be re-used. A dedicated set of credentials can be provided. This and more configuration can be found in their [documentation](https://argocd-image-updater.readthedocs.io/en/stable/basics/update-methods).
+> When using the `git` write back method, credentials configured for Argo CD will be re-used. A dedicated set of credentials can be provided, this and more configuration can be found in the [documentation](https://argocd-image-updater.readthedocs.io/en/stable/basics/update-methods).
 
 **Update strategies**
 
