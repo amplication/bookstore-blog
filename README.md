@@ -22,6 +22,8 @@ In a second - detached - part of the process, the cluster configuration reposito
 
 ![gitops-default-overview](assets/gitops-default-overview.png)
 
+![Alt text](image.png)
+
 #### extended gitops
 
 Compared to the default process, in this extended variant another Argo CD component is added to the Kubernetes cluster. The Argo CD Image Updater component will verify if a more recent version of a container image exists within the image registry. If such version is identified, the component will either directly or indirectly update the running application. In the next section we'll delve into the configuration options for the Argo CD Image Updater aswell as the implementation of the component.
@@ -111,6 +113,10 @@ jobs:
     name: build and push container image
     runs-on: ubuntu-latest
     
+    permissions:
+      contents: read
+      packages: write
+
     steps:
       - name: checkout source code
         uses: actions/checkout@v4
@@ -149,6 +155,7 @@ For simplicity sake the image registry is made public so that additional authent
 #### cluster configuration
 
 
-#### 
+
+#### demonstration
 
 
