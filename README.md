@@ -22,8 +22,6 @@ In a second - detached - part of the process, the cluster configuration reposito
 
 ![gitops-default-overview](assets/gitops-default-overview.png)
 
-![Alt text](image.png)
-
 #### extended gitops
 
 Compared to the default process, in this extended variant another Argo CD component is added to the Kubernetes cluster. The Argo CD Image Updater component will verify if a more recent version of a container image exists within the image registry. If such version is identified, the component will either directly or indirectly update the running application. In the next section we'll delve into the configuration options for the Argo CD Image Updater aswell as the implementation of the component.
@@ -154,8 +152,43 @@ For simplicity sake the image registry is made public so that additional authent
 
 #### cluster configuration
 
+//TODO:
+
+## demonstration:
+
+#### argo cd authentication
+
+We'll start by setting up our Kubernetes cluster, for this demonstration a local cluster will be used, created through minikube. After installing minikube the following command can be ran to start the cluster:
+
+```bash
+$ minikube start
+```
+
+The next step would be to setup Argo CD within the cluster, this can be done by running the following commands: 
+
+```bash
+$ kubectl create namespace argocd
+```
+
+```bash
+$ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+```
+
+To get access to the running Argo CD instance we can use port-forwarding to connect to the api server without having to expose the service:
+
+```bash
+$ kubectl port-forward svc/argocd-server -n argocd 8080:443
+```
+
+An initial password is generated for the admin account and stored under the `password` field in a secret named `argocd-initial-admin-secret`. Use this to login with the `username` value `admin` and change the password for the user in the settings. Another safer option would be to use SSO.
+
+```bash
+$ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+```
+
+#### argocd configuration
 
 
-#### demonstration
 
+## conclusion:
 
