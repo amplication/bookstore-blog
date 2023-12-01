@@ -168,8 +168,7 @@ helm create <application-name>
         └── tests/    # test files
 ```
 
-
-
+//TODO
 
 ## demonstration:
 
@@ -249,9 +248,7 @@ spec:
 
 Apply this configuration against the cluster by using the following command:
 
-```bash
-
-```
+//TODO
 
 ## conclusion:
 
