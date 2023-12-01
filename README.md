@@ -14,7 +14,7 @@ This is where Argo CD Image Updater comes in, it will verify if a more recent ve
 
 Prior to diving into the technical implementation, let's establish an overview of the GitOps process and highlight the role of Argo CD Image Updater within this process.
 
-#### Default GitOps
+#### default gitops
 
 The first part of process starts with a developer modifying the source code of the application and pushing the changes back to the version control system. Subsequently, this action initiates a workflow or pipeline that both constructs and assesses the application. The outcome is an artifact in the form of a container image, which is subsequently pushed to an image registry.
 
@@ -22,23 +22,25 @@ In a second - detached - part of the process, the cluster configuration reposito
 
 ![gitops-default-overview](assets/gitops-default-overview.png)
 
-#### Extended GitOps
+#### extended gitops
 
 Compared to the default process, in this extended variant another Argo CD component is added to the Kubernetes cluster. The Argo CD Image Updater component will verify if a more recent version of a container image exists within the image registry. If such version is identified, the component will either directly or indirectly update the running application. In the next section we'll delve into the configuration options for the Argo CD Image Updater aswell as the implementation of the component.
 
 ![gitops-extended-overview](assets/gitops-extended-overview.png)
 
-## implementation:
+## configuration:
 
 Before the technical implementation we'll familiarize ourself with the configuration options Argo CD Image Updater provides. This configuration can be found in two concepts, the `write back method` and `update strategy`. Both have options tailored to specific situation, so it is good to understand what the options are and how that equates to the technical implementation.
 
-#### Configuration - write back method
+#### write back method
 
 At the moment of writing Argo CD Image Updater supports two methods of propagating the new versions of the images to Argo CD. These methods also refered to as _write back_ methods are `argocd` & `git`. 
 
 - `argocd`: This default _write back_ method is pseudo-persistent - when deleting an application or synchronizing the configuration in version control, any changes made to an application by Argo CD Image Updater will be gone - making it best suitable for imperatively created reasources. This default method doesn't require additional configuration.
 
 - `git`: The other _write back_ method is the persistent/declarative option, when the a more recent version of a container image is identified, Argo CD Image Updater will store the parameter override along the application's resource manifests. It will store the override in a file named `.argocd-source-<application-name>.yaml`, reducing the risk of a merge conflict in the application's reouces manifests. To change the _write back_ method the an annotation needs to be set on the Argo CD `Application` resource. In addition the branch the to commit back to can optionally be changed from the default value `.spec.source.targetRevision` of the application.
+
+    From an audit trail and a reproducible perspective, this is the desired option. It provides us with the option to have automatic continuous deployment, while keeping these aspects that GitOps is known for.
 
     ```yaml
     argocd-image-updater.argoproj.io/write-back-method: git
@@ -47,7 +49,7 @@ At the moment of writing Argo CD Image Updater supports two methods of propagati
 > [!NOTE]
 > When using the `git` write back method, credentials configured for Argo CD will be re-used. A dedicated set of credentials can be provided, this and more configuration can be found in the [documentation](https://argocd-image-updater.readthedocs.io/en/stable/basics/update-methods).
 
-#### Configuration - update strategies
+#### update strategies
 
 In addition to the choice of which write back method to use we need to decide on a update strategy. This strategy defines how Argo CD Image Updater finds new versions of an image that is to be updated. Currently four methods are supported; `semver`, `latest`, `digest`, `name`. 
 
@@ -80,3 +82,73 @@ Before looking at their respective differences, we'll need to know what `mutable
     argocd-image-updater.argoproj.io/<alias>.update-strategy: name
     argocd-image-updater.argoproj.io/image-list: <alias>=<repository-name>/<image-name>
     ```
+
+## implementation:
+
+We'll start out by creating two repositories as can been seen within the overview, a `source code` and a `cluster configuration` repository. Theoretically both could be housed in the same repository, but a seperation of concerns is advised. 
+
+The next step would be to setup the continuous integration pipeline to create the artifact, i.e. container image, that will be used as a starting point in the continuous deployment process. In this walkthrough we'll use GitHub for our repository aswell as GitHub Actions for our pipeline. However this setup can be made in most popular version control/pipeline options.
+
+#### continuous Integration workflow
+
+Within the source code repository under ther `.github/worksflows/` directory we'll create a GitHub actions workflow, which we name `continuous-integration.yaml`. This workflow will consist of checking out the source code, building the container image and pushing it to the GitHub Packages Image registry.
+
+```yaml
+name: continuous-integration
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    name: build and push container image
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: checkout source code
+        uses: actions/checkout@v4
+
+      - name: authenticate with repository
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: image metadata
+        uses: docker/metadata-action@v4
+        id: meta
+        with:
+          images: "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          tags: |
+            type=sha,prefix=sha-
+            type=ref,event=pr,prefix=pr-
+            type=ref,event=tag,prefix=tag-
+            type=raw,value=${{ github.run_id }},prefix=gh-
+            type=raw,value=${{ github.ref_name }}
+            type=raw,value=latest,enable=${{ github.ref_name == 'main' }}
+
+      - name: build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+```
+
+For simplicity sake the image registry is made public so that additional authentication from within the cluster isn't needed. You can discover a detailed tutorial on how to make a GitHub Package public [here](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/managing-repository-settings/setting-repository-visibility). If you prefer utilizing a private repository, refer to [this](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/) guide to enable pulling from the private repository within the cluster.
+
+#### cluster configuration
+
+
+#### 
+
+
