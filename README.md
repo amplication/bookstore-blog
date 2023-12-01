@@ -161,29 +161,29 @@ For simplicity sake the image registry is made public so that additional authent
 We'll start by setting up our Kubernetes cluster, for this demonstration a local cluster will be used, created through minikube. After installing minikube the following command can be ran to start the cluster:
 
 ```bash
-$ minikube start
+minikube start
 ```
 
 The next step would be to setup Argo CD within the cluster, this can be done by running the following commands:
 
 ```bash
-$ kubectl create namespace argocd
+kubectl create namespace argocd
 ```
 
 ```bash
-$ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 ```
 
 To get access to the running Argo CD instance we can use port-forwarding to connect to the api server without having to expose the service:
 
 ```bash
-$ kubectl port-forward svc/argocd-server -n argocd 8080:443
+kubectl port-forward svc/argocd-server -n argocd 8080:443
 ```
 
 An initial password is generated for the admin account and stored under the `password` field in a secret named `argocd-initial-admin-secret`. Use this to login with the `username` value `admin` and change the password for the user in the settings. Another safer option would be to use SSO.
 
 ```bash
-$ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
 ```
 
 #### argocd configuration
