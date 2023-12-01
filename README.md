@@ -152,7 +152,24 @@ For simplicity sake the image registry is made public so that additional authent
 
 #### cluster configuration
 
-//TODO:
+For our application's Kubernetes resources we'll create a Helm chart. In the cluster configuration repository, under the charts directory run the following command:
+
+```bash
+helm create <application-name>
+```
+
+```
+  charts/<application-name>
+    ├── .helmignore   # patterns to ignore when packaging Helm charts.
+    ├── Chart.yaml    # information about your chart
+    ├── values.yaml   # default values for your templates
+    ├── charts/       # chart dependencies
+    └── templates/    # template files
+        └── tests/    # test files
+```
+
+
+
 
 ## demonstration:
 
@@ -180,15 +197,61 @@ To get access to the running Argo CD instance we can use port-forwarding to conn
 kubectl port-forward svc/argocd-server -n argocd 8080:443
 ```
 
-An initial password is generated for the admin account and stored under the `password` field in a secret named `argocd-initial-admin-secret`. Use this to login with the `username` value `admin` and change the password for the user in the settings. Another safer option would be to use SSO.
+An initial password is generated for the admin account and stored under the `password` field in a secret named `argocd-initial-admin-secret`. Use this to login with the `username` value `admin` and change the password for the user in the 'User Info' . Another safer option would be to use SSO.
 
 ```bash
 kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
 ```
 
+Now that we hve access to the Argo CD user interface, we'll look at the configuration of Argo CD Applications.
+
 #### argocd configuration
 
+The next step would be to configure Argo CD to start managing the application's Kubernetes resources. This can be done in an imperative or declarative manner. For this demonstration we'll configure the Argo CD application declaratively. Lets look at the following manifest:
 
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: <application-name>
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/<organization-name>/<repository-name>.git
+    targetRevision: HEAD
+    path: charts/<application-name>
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: <application-name>
+```
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: bookstore
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/amplication/blog-cluster-configuration.git
+    targetRevision: HEAD
+    path: charts/bookstore
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: bookstore
+```
+
+Apply this configuration against the cluster by using the following command:
+
+```bash
+
+```
 
 ## conclusion:
 
