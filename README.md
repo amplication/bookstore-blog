@@ -164,7 +164,7 @@ We'll start by setting up our Kubernetes cluster, for this demonstration a local
 $ minikube start
 ```
 
-The next step would be to setup Argo CD within the cluster, this can be done by running the following commands: 
+The next step would be to setup Argo CD within the cluster, this can be done by running the following commands:
 
 ```bash
 $ kubectl create namespace argocd
