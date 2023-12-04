@@ -168,7 +168,7 @@ helm create <application-name>
         └── tests/    # test files
 ```
 
-//TODO
+//TODO: add a directory containing Argo CD Image Updater dependency and values
 
 ## demonstration:
 
@@ -206,8 +206,56 @@ Now that we hve access to the Argo CD user interface, we'll look at the configur
 
 #### argocd configuration
 
-The next step would be to configure Argo CD to start managing the application's Kubernetes resources. This can be done in an imperative or declarative manner. For this demonstration we'll configure the Argo CD application declaratively. Lets look at the following manifest:
+Before we can configure Argo CD to start managing the application's Kubernetes resources, we need to make sure that Argo CD can access the cluster configuration repository. Repository details are stored in secret resources. Authentication can be handeld in different ways, but for this demonstration we'll use HTTPS.
 
+`syntax`
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: <repository-name>
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: git
+  url: https://github.com/argoproj/private-repo
+  password: <github-pat>
+  username: <github-username>
+```
+
+Before we can declaratively create the secret used for authentication we need to create the GitHub Personal Access Token (PAT) used in the `password` field of the secret. Navigate to `Settings` on the profile navigation bar. Click on `Developer settings` > `Personal access tokens` > `Fine-grained token` & `Generate new token`. Set a `token name`, e.g., `argocd-repository-cluster-configuration` and set an `experation`, I would suggest for a year. Set the `Resource owner` to the user or organisation that the cluster configuration repository is in. Set the `Repository access` to 'only select repositories' and set it to access only the cluster configuration repository. Lastly we need to give the token scoped permissions, for the integration to work we need the following: `Contents - Access: Read and write` & `Metadata - Access: Read-only`.
+
+`./secret/cluster-configuration-repository.yaml`
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: blog-cluster-configuration
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: git
+  url: https://github.com/amplication/blog-cluster-configuration
+  password: <github-pat>
+  username: levivannoort
+```
+
+Apply this secret against the cluster by using the following command:
+
+```bash
+kubectl apply -f ./secret/cluster-configuration-repository.yaml
+```
+
+When looking at the Argo CD user interfaces, we can see under the settings > repositories whether the authentication against the GitHub repository has succeeded. We should now be able to start using the repository definition in our Argo CD application.
+
+![argocd-repository-authentication](assets/argocd-repository-authentication.png)
+
+
+Now that we're able to authenticate against GitHub to get the content from the cluster configuration repository. We can start defining our Argo CD applications and start managing the application's Kubernetes resources. This can be done in an imperative or declarative manner. For this demonstration we'll configure the Argo CD application declaratively. Lets look at the following manifest:
+
+`syntax`
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -227,6 +275,7 @@ spec:
     namespace: <application-name>
 ```
 
+`example-application.yaml`
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -248,7 +297,18 @@ spec:
 
 Apply this configuration against the cluster by using the following command:
 
-//TODO
+```bash
+kubectl apply -f <manifest-name>.yaml
+```
+
+// TODO: Add a screenshot of the Argo CD overview containing the Argo CD application
+
+// TODO: Add a screenshot of the Argo CD application and it's resources & version of the application
+
+// TODO: Make a change on the application in GitHub triggering a build and ultimately leading to a newer version of the application
+
 
 ## conclusion:
+
+
 
