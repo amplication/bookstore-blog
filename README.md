@@ -324,7 +324,7 @@ kubectl apply -f <manifest-name>.yaml
 
 After creation of the Argo CD application we can see that the application is now running within the cluster and healthy. 
 
-![argocd-application-created](argocd-application-created.png)
+![argocd-application-created](assets/argocd-application-created.png)
 
 
 // TODO: Add a screenshot of the Argo CD application and it's resources & version of the application
