@@ -32,6 +32,12 @@ Compared to the default process, in this extended variant another Argo CD compon
 
 Before the technical implementation we'll familiarize ourself with the configuration options Argo CD Image Updater provides. This configuration can be found in two concepts, the `write back method` and `update strategy`. Both have options tailored to specific situation, so it is good to understand what the options are and how that equates to the technical implementation.
 
+For this configuration/demonstration the following repositories can be referenced
+
+- [bookstore-application](https://github.com/amplication/bookstore-application)
+- [bookstore-cluster-configuration](https://github.com/amplication/bookstore-cluster-configuration)
+
+
 #### write back method
 
 At the moment of writing Argo CD Image Updater supports two methods of propagating the new versions of the images to Argo CD. These methods also refered to as _write back_ methods are `argocd` & `git`. 
@@ -294,11 +300,11 @@ spec:
       - CreateNamespace=true
 ```
 
-For instrumenting Argo CD Image Updater we'll need to add the previously mentioned annotations. We're going for the `semver` update strategy with a `git` write back. Add the following annotations:
+For instrumenting Argo CD Image Updater we'll need to add the previously mentioned annotations. We're going for the `semver` update strategy with a `argocd` write back. As both the chosen update strategy as well as the write back method are the default we don't need to specify these annotations.
+
+Add the following annotations:
 
 ```yaml
-argocd-image-updater.argoproj.io/write-back-method: git
-argocd-image-updater.argoproj.io/bookstore.update-strategy: semver
 argocd-image-updater.argoproj.io/image-list: bookstore=ghcr.io/amplication/bookstore-application
 ```
 
@@ -310,7 +316,7 @@ metadata:
   name: bookstore
   namespace: argocd
   annotations:
-    argocd-image-updater.argoproj.io/write-back-method: git
+    argocd-image-updater.argoproj.io/write-back-method: argocd
     argocd-image-updater.argoproj.io/bookstore.update-strategy: semver
     argocd-image-updater.argoproj.io/image-list: bookstore=ghcr.io/amplication/bookstore-application
   finalizers:
