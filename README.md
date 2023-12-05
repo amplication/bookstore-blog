@@ -370,7 +370,6 @@ For the demonstration I decided to disable the automated synchronization policy.
 
 ![argocd-application-deployment-rolling-update](assets/argocd-application-deployment-rolling-update.png)
 
-
 ![argocd-application-parameter-override](assets/argocd-application-parameter-override.png)
 
 ## conclusion:
