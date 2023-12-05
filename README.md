@@ -99,6 +99,7 @@ name: continuous-integration
 on:
   push:
     branches: ["main"]
+    tags: ["*"]
   pull_request:
     branches: ["main"]
 
@@ -150,6 +151,12 @@ jobs:
 
 For simplicity sake the image registry is made public so that additional authentication from within the cluster isn't needed. You can discover a detailed tutorial on how to make a GitHub Package public [here](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/managing-repository-settings/setting-repository-visibility). If you prefer utilizing a private repository, refer to [this](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/) guide to enable pulling from the private repository within the cluster.
 
+We can see that after we commit to our `main` branch that packages are automatically pushed to our GitHub packages image registry.
+![github-packages-release-main](assets/github-packages-release-main.png)
+
+If we now release everything that is in the main branch with a semantic version of `v1.0.0` we can see the newer version of the application image, where the `sha-<number>` is also placed on the newer image as no new commit was made between the previous push on `main` and the tag.
+![github-packages-release-v100](assets/github-packages-release-v100.png)
+
 #### cluster configuration
 
 For our application's Kubernetes resources we'll create a Helm chart. In the cluster configuration repository, under the charts directory run the following command:
@@ -167,8 +174,6 @@ helm create <application-name>
     └── templates/    # template files
         └── tests/    # test files
 ```
-
-## demonstration:
 
 #### argo cd & argo cd image updater installation
 
@@ -223,7 +228,7 @@ metadata:
     argocd.argoproj.io/secret-type: repository
 stringData:
   type: git
-  url: https://github.com/argoproj/private-repo
+  url: https://github.com/<organization-or-username>/<repository-name>
   password: <github-pat>
   username: <github-username>
 ```
@@ -243,7 +248,7 @@ metadata:
     argocd.argoproj.io/secret-type: repository
 stringData:
   type: git
-  url: https://github.com/amplication/blog-cluster-configuration
+  url: https://github.com/amplication/bookstore-cluster-configuration
   password: <github-pat>
   username: levivannoort
 ```
@@ -275,7 +280,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/<organization-name>/<repository-name>.git
-    targetRevision: HEAD
+    targetRevision: main
     path: charts/<application-name>
   destination:
     server: https://kubernetes.default.svc
@@ -289,6 +294,14 @@ spec:
       - CreateNamespace=true
 ```
 
+For instrumenting Argo CD Image Updater we'll need to add the previously mentioned annotations. We're going for the `semver` update strategy with a `git` write back. Add the following annotations:
+
+```yaml
+argocd-image-updater.argoproj.io/write-back-method: git
+argocd-image-updater.argoproj.io/bookstore.update-strategy: semver
+argocd-image-updater.argoproj.io/image-list: bookstore=ghcr.io/amplication/bookstore-application
+```
+
 `example-application.yaml`
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -296,13 +309,17 @@ kind: Application
 metadata:
   name: bookstore
   namespace: argocd
+  annotations:
+    argocd-image-updater.argoproj.io/write-back-method: git
+    argocd-image-updater.argoproj.io/bookstore.update-strategy: semver
+    argocd-image-updater.argoproj.io/image-list: bookstore=ghcr.io/amplication/bookstore-application
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
-    repoURL: https://github.com/amplication/blog-cluster-configuration.git
-    targetRevision: HEAD
+    repoURL: https://github.com/amplication/bookstore-cluster-configuration.git
+    targetRevision: main
     path: charts/bookstore
   destination:
     server: https://kubernetes.default.svc
@@ -322,21 +339,39 @@ Apply this configuration against the cluster by using the following command:
 kubectl apply -f <manifest-name>.yaml
 ```
 
-After creation of the Argo CD application we can see that the application is now running within the cluster and healthy. 
+## demonstration:
+
+After creation of the Argo CD application we can see that the application is healthy and running within the cluster. As our application needed a database to be able to run we added a dependency to a postgresql helm chart for running a database in the cluster aswell - so additional resources can be seen next to the default Helm chart Kubernetes resources.
 
 ![argocd-application-created](assets/argocd-application-created.png)
 
+If we take an in-depth look on the `deployment` object we'll see the image tag currently used by the deployment, which is the current last release within the repository - `v1.0.0`.
 
-// TODO: Add a screenshot of the Argo CD application and it's resources & version of the application
+![argocd-application-deployment-overview](assets/argocd-application-deployment-overview.png)
 
-// TODO: Make a change on the application in GitHub triggering a build and ultimately leading to a newer version of the application
+When looking at the Argo CD Image Updater logging, we can see that it has picked up the fact that we want to continuously update to the latest semantic version. By setting `log.level` to `debug` instead of the default `info` we get more information around which images are being considered and which do not match the constraints.
 
-// TODO: Make a screenshot of the Argo CD Image Updater logs containing the version change identification
+![argocd-image-updater-logging-v100](assets/argocd-image-updater-logging-v100.png)
 
-// TODO: Make a screenshot the commit done by Argo CD Image Updater on the cluster configuration repository
+Next we update the application with some changes and release the component again with an incremented version:
 
-// TODO: Show the diff in the Argo CD application containing only the write back change
+![github-release-v101](assets/github-release-v101.png)
 
+![github-packages-release-v101](assets/github-packages-release-v101.png)
+
+ArgoCD image updater periodically checks the image registry for newer versions per the constraints and finds the `v1.0.1` image.
+
+![argocd-image-updater-logging-v101](assets/argocd-image-updater-logging-v101.png)
+
+For the demonstration I decided to disable the automated synchronization policy. As you can see Argo CD Image Updater changed the image tag from `v1.0.0` to `v1.0.1`.
+
+![argocd-application-deployment-diff](assets/argocd-application-deployment-diff.png)
+
+
+![argocd-application-deployment-rolling-update](assets/argocd-application-deployment-rolling-update.png)
+
+
+![argocd-application-parameter-override](assets/argocd-application-parameter-override.png)
 
 ## conclusion:
 
