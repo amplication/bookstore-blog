@@ -8,7 +8,7 @@ Over the last decade, there have been notable shifts in the process of deliverin
 
 As this desired state is off declarative nature, it points to a specific/static version of that application. Which has great advantages, namely the fact that it makes it easy to roll back to a previous state, audit changes before they are made and maintain a reproducible setup. But how do we move to a newer version of an application without the need for manual version adjustments?
 
-This is where Argo CD Image Updater comes in, it will verify if a more recent version of a container image is available, subsequently triggers the necessary updates of the applicable Kubernetes resources and optionally reflects these changes in the associated version control.
+This is where Argo CD Image Updater comes in; it verifies if a more recent version of a container image is available, and it subsequently triggers the necessary updates of the applicable Kubernetes resources, and optionally reflects these changes in the associated version control.
 
 ## overview:
 
@@ -24,7 +24,7 @@ In a second - detached - part of the process, the cluster configuration reposito
 
 #### extended gitops
 
-Compared to the default process, in this extended variant another Argo CD component is added to the Kubernetes cluster. The Argo CD Image Updater component will verify if a more recent version of a container image exists within the image registry. If such version is identified, the component will either directly or indirectly update the running application. In the next section we'll delve into the configuration options for the Argo CD Image Updater as well as the implementation of the component.
+Compared to the default process, in this extended variant, another Argo CD component is added to the Kubernetes cluster. The Argo CD Image Updater component verifies if a more recent version of a container image exists within the image registry. If such version is identified, the component updates either directly or indirectly the running application. In the next section we'll delve into the configuration options for the Argo CD Image Updater as well as the implementation of the component.
 
 ![gitops-extended-overview](assets/gitops-extended-overview.png)
 
