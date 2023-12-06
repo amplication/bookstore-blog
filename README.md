@@ -8,7 +8,7 @@ Over the last decade, there have been notable shifts in the process of deliverin
 
 As this desired state is off declarative nature, it points to a specific/static version of that application. Which has great advantages, namely the fact that it makes it easy to roll back to a previous state, audit changes before they are made and maintain a reproducible setup. But how do we move to a newer version of an application without the need for manual version adjustments?
 
-This is where Argo CD Image Updater comes in, it will verify if a more recent version of a container image is available, subsequently triggers the necessary updates of the applicable Kubernetes resources and optionally reflects these changes in the assosciated version control.
+This is where Argo CD Image Updater comes in, it will verify if a more recent version of a container image is available, subsequently triggers the necessary updates of the applicable Kubernetes resources and optionally reflects these changes in the associated version control.
 
 ## overview:
 
@@ -18,13 +18,13 @@ Prior to diving into the technical implementation, let's establish an overview o
 
 The first part of process starts with a developer modifying the source code of the application and pushing the changes back to the version control system. Subsequently, this action initiates a workflow or pipeline that both constructs and assesses the application. The outcome is an artifact in the form of a container image, which is subsequently pushed to an image registry.
 
-In a second - detached - part of the process, the cluster configuration repository is the single source of truth regarding the the _desired state_ of the application configuration. Argo CD will periodically monitor the Kubernetes cluster to see if the _live state_ differs from the _desired state_. When there is a difference, depending on the synchronisation strategy Argo CD will try to revert back to the _desired state_.
+In a second - detached - part of the process, the cluster configuration repository is the single source of truth regarding the the _desired state_ of the application configuration. Argo CD will periodically monitor the Kubernetes cluster to see if the _live state_ differs from the _desired state_. When there is a difference, depending on the synchronization strategy Argo CD will try to revert back to the _desired state_.
 
 ![gitops-default-overview](assets/gitops-default-overview.png)
 
 #### extended gitops
 
-Compared to the default process, in this extended variant another Argo CD component is added to the Kubernetes cluster. The Argo CD Image Updater component will verify if a more recent version of a container image exists within the image registry. If such version is identified, the component will either directly or indirectly update the running application. In the next section we'll delve into the configuration options for the Argo CD Image Updater aswell as the implementation of the component.
+Compared to the default process, in this extended variant another Argo CD component is added to the Kubernetes cluster. The Argo CD Image Updater component will verify if a more recent version of a container image exists within the image registry. If such version is identified, the component will either directly or indirectly update the running application. In the next section we'll delve into the configuration options for the Argo CD Image Updater as well as the implementation of the component.
 
 ![gitops-extended-overview](assets/gitops-extended-overview.png)
 
@@ -40,9 +40,9 @@ For this configuration/demonstration the following repositories can be reference
 
 #### write back method
 
-At the moment of writing Argo CD Image Updater supports two methods of propagating the new versions of the images to Argo CD. These methods also refered to as _write back_ methods are `argocd` & `git`. 
+At the moment of writing Argo CD Image Updater supports two methods of propagating the new versions of the images to Argo CD. These methods also referred to as _write back_ methods are `argocd` & `git`. 
 
-- `argocd`: This default _write back_ method is pseudo-persistent - when deleting an application or synchronizing the configuration in version control, any changes made to an application by Argo CD Image Updater will be gone - making it best suitable for imperatively created reasources. This default method doesn't require additional configuration.
+- `argocd`: This default _write back_ method is pseudo-persistent - when deleting an application or synchronizing the configuration in version control, any changes made to an application by Argo CD Image Updater will be gone - making it best suitable for imperatively created resources. This default method doesn't require additional configuration.
 
 - `git`: The other _write back_ method is the persistent/declarative option, when the a more recent version of a container image is identified, Argo CD Image Updater will store the parameter override along the application's resource manifests. It will store the override in a file named `.argocd-source-<application-name>.yaml`, reducing the risk of a merge conflict in the application's reouces manifests. To change the _write back_ method the an annotation needs to be set on the Argo CD `Application` resource. In addition the branch the to commit back to can optionally be changed from the default value `.spec.source.targetRevision` of the application.
 
@@ -59,7 +59,7 @@ At the moment of writing Argo CD Image Updater supports two methods of propagati
 
 In addition to the choice of which write back method to use we need to decide on a update strategy. This strategy defines how Argo CD Image Updater finds new versions of an image that is to be updated. Currently four methods are supported; `semver`, `latest`, `digest`, `name`. 
 
-Before looking at their respective differences, we'll need to know what `mutable` and `immutable` image tags are. A mutable repository has tags that can be overwritten by a newer image, where as when a repository configuraiton states that tags must be immutable - it can't be overwritten by a newer image. From the options below each options expects _immutable_ tags to be used, if a mutable _tag_ is used the _digest_ strategy should be used.
+Before looking at their respective differences, we'll need to know what `mutable` and `immutable` image tags are. A mutable repository has tags that can be overwritten by a newer image, where as when a repository configuration states that tags must be immutable - it can't be overwritten by a newer image. From the options below each options expects _immutable_ tags to be used, if a mutable _tag_ is used the _digest_ strategy should be used.
 
 - `semver`: Updates the application to the latest version of an image in an image registry while taking into consideration semantic versioning constraints - following the format `X.Y.Z`, where `X` is the major version, `Y` is the minor version and `Z` the patch version. The option can be configured to only bump, to newer minor or patch versions - it also supports pre-release versions through additional configuration. In the example below the application would be updated with newer patch version of the application, but not upgrading when a newer minor or major version is present.
 
@@ -75,14 +75,14 @@ Before looking at their respective differences, we'll need to know what `mutable
     argocd-image-updater.argoproj.io/image-list: <alias>=<repository-name>/<image-name>
     ```
 
-- `digest`: Updates the application based on a change for a muttable tag within the registry. When this strategy is used image digests will be used for updating the application, so the image on the cluster for `<repository-name>/<image-name>:<tag_name>` will appear as `<repository-name>/<image-name>@sha256:<hash>`.
+- `digest`: Updates the application based on a change for a mutable tag within the registry. When this strategy is used image digests will be used for updating the application, so the image on the cluster for `<repository-name>/<image-name>:<tag_name>` will appear as `<repository-name>/<image-name>@sha256:<hash>`.
 
     ```yaml
     argocd-image-updater.argoproj.io/<alias>.update-strategy: digest
     argocd-image-updater.argoproj.io/image-list: <alias>=<repository-name>/<image-name>:<tag_name>
     ```
 
-- `name`: Updates the application based on a lecixal sort of the image tags and uses the last tag in the sorted list. Which could be used when using date/time for tagging images. Similar to the latest strategy, a regular expression can be used to consider only specific tags.
+- `name`: Updates the application based on a lexical sort of the image tags and uses the last tag in the sorted list. Which could be used when using date/time for tagging images. Similar to the latest strategy, a regular expression can be used to consider only specific tags.
 
     ```yaml
     argocd-image-updater.argoproj.io/<alias>.update-strategy: name
@@ -91,13 +91,13 @@ Before looking at their respective differences, we'll need to know what `mutable
 
 ## implementation:
 
-We'll start out by creating two repositories as can been seen within the overview, a `source code` and a `cluster configuration` repository. Theoretically both could be housed in the same repository, but a seperation of concerns is advised. 
+We'll start out by creating two repositories as can been seen within the overview, a `source code` and a `cluster configuration` repository. Theoretically both could be housed in the same repository, but a separation of concerns is advised. 
 
-The next step would be to setup the continuous integration pipeline to create the artifact, i.e. container image, that will be used as a starting point in the continuous deployment process. In this walkthrough we'll use GitHub for our repository aswell as GitHub Actions for our pipeline. However this setup can be made in most popular version control/pipeline options.
+The next step would be to setup the continuous integration pipeline to create the artifact, i.e. container image, that will be used as a starting point in the continuous deployment process. In this walkthrough we'll use GitHub for our repository as well as GitHub Actions for our pipeline. However this setup can be made in most popular version control/pipeline options.
 
 #### continuous Integration workflow
 
-Within the source code repository under ther `.github/worksflows/` directory we'll create a GitHub actions workflow, which we name `continuous-integration.yaml`. This workflow will consist of checking out the source code, building the container image and pushing it to the GitHub Packages Image registry.
+Within the source code repository under the `.github/worksflows/` directory we'll create a GitHub actions workflow, which we name `continuous-integration.yaml`. This workflow will consist of checking out the source code, building the container image and pushing it to the GitHub Packages Image registry.
 
 ```yaml
 name: continuous-integration
@@ -221,7 +221,7 @@ Now that we have access to the Argo CD user interface, we'll look at the configu
 
 #### argo cd authentication
 
-Before we can configure Argo CD to start managing the application's Kubernetes resources, we need to make sure that Argo CD can access the cluster configuration repository. Repository details are stored in secret resources. Authentication can be handeld in different ways, but for this demonstration we'll use HTTPS.
+Before we can configure Argo CD to start managing the application's Kubernetes resources, we need to make sure that Argo CD can access the cluster configuration repository. Repository details are stored in secret resources. Authentication can be handled in different ways, but for this demonstration we'll use HTTPS.
 
 `syntax`
 ```yaml
@@ -239,9 +239,9 @@ stringData:
   username: <github-username>
 ```
 
-Before we can declaratively create the secret used for authentication we need to create the GitHub Personal Access Token (PAT) used in the `password` field of the secret. Navigate to `Settings` on the profile navigation bar. Click on `Developer settings` > `Personal access tokens` > `Fine-grained token` & `Generate new token`. Set a `token name`, e.g., `argocd-repository-cluster-configuration` and set an `experation`, I would suggest for a year. 
+Before we can declaratively create the secret used for authentication we need to create the GitHub Personal Access Token (PAT) used in the `password` field of the secret. Navigate to `Settings` on the profile navigation bar. Click on `Developer settings` > `Personal access tokens` > `Fine-grained token` & `Generate new token`. Set a `token name`, e.g., `argocd-repository-cluster-configuration` and set an `expiration`, I would suggest for a year. 
 
-Set the `Resource owner` to the user or organisation that the cluster configuration repository is in. Set the `Repository access` to 'only select repositories' and set it to access only the cluster configuration repository. Lastly we need to give the token scoped permissions, for the integration to work we need the following: `Contents - Access: Read and write` & `Metadata - Access: Read-only`.
+Set the `Resource owner` to the user or organization that the cluster configuration repository is in. Set the `Repository access` to 'only select repositories' and set it to access only the cluster configuration repository. Lastly we need to give the token scoped permissions, for the integration to work we need the following: `Contents - Access: Read and write` & `Metadata - Access: Read-only`.
 
 `./secret/cluster-configuration-repository.yaml`
 ```yaml
@@ -347,7 +347,7 @@ kubectl apply -f <manifest-name>.yaml
 
 ## demonstration:
 
-After creation of the Argo CD application we can see that the application is healthy and running within the cluster. As our application needed a database to be able to run we added a dependency to a postgresql helm chart for running a database in the cluster aswell - so additional resources can be seen next to the default Helm chart Kubernetes resources.
+After creation of the Argo CD application we can see that the application is healthy and running within the cluster. As our application needed a database to be able to run we added a dependency to a postgresql helm chart for running a database in the cluster as well - so additional resources can be seen next to the default Helm chart Kubernetes resources.
 
 ![argocd-application-created](assets/argocd-application-created.png)
 
