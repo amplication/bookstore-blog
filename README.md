@@ -383,7 +383,7 @@ For the demonstration I decided to disable the automated synchronization policy.
 
 We managed to successfully configure the extended GitOps setup. Any changes made on the application side should be reflected by outputting a container image to the artifact registry, successfully completing the Continuous Integration side. After which in a detached manner the Continuous Deployment process is started by Argo CD Image Updater finding a newer container image in the image registry and updating the declaratively defined image tag for the application. In turn triggering Argo CD to update the application's Kubernetes resource, serving the newer version of the application by updating the deployment with the new image tag.
 
-A possible improvement to the setup demonstrated would be to switch over to the `git` write back method, improving the setup by being more reproducible and having a clear audit trail.
+A possible improvement to the setup demonstrated, would be to switch over to the `git` write back method, improving the setup by being more reproducible as well as having a clear audit trail.
 
 The application used in this demonstration was generated through [Amplication](https://amplication.com), which allows you to generate production-ready backend services - reliably, securely, and consistently.
 
