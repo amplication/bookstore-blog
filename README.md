@@ -44,7 +44,7 @@ At the moment of writing Argo CD Image Updater supports two methods of propagati
 
 - `argocd`: This default _write back_ method is pseudo-persistent - when deleting an application or synchronizing the configuration in version control, any changes made to an application by Argo CD Image Updater are lost - making it best suitable for imperatively created resources. This default method doesn't require additional configuration.
 
-- `git`: The other _write back_ method is the persistent/declarative option, when the a more recent version of a container image is identified, Argo CD Image Updater stores the parameter override along the application's resource manifests. It stores the override in a file named `.argocd-source-<application-name>.yaml`, reducing the risk of a merge conflict in the application's reouces manifests. To change the _write back_ method the an annotation needs to be set on the Argo CD `Application` resource. In addition the branch the to commit back to can optionally be changed from the default value `.spec.source.targetRevision` of the application.
+- `git`: The other _write back_ method is the persistent/declarative option, when the a more recent version of a container image is identified, Argo CD Image Updater stores the parameter override along the application's resource manifests. It stores the override in a file named `.argocd-source-<application-name>.yaml`, reducing the risk of a merge conflict in the application's resource manifests. To change the _write back_ method the an annotation needs to be set on the Argo CD `Application` resource. In addition the branch the to commit back to can optionally be changed from the default value `.spec.source.targetRevision` of the application.
 
     From an audit trail and a reproducible perspective, this is the desired option. It provides us with the option to have automatic continuous deployment, while keeping these aspects that GitOps is known for.
 
@@ -361,9 +361,11 @@ When looking at the Argo CD Image Updater logging, we can see that it has picked
 
 ![argocd-image-updater-logging-v100](assets/argocd-image-updater-logging-v100.png)
 
-Next we update the application with some changes and release the component again with an incremented version:
+Next we update the application with some changes and release the component again with an incremented version `1.0.1`:
 
 ![github-release-v101](assets/github-release-v101.png)
+
+After the workflow has concluded this newer version should be present within the image registry:
 
 ![github-packages-release-v101](assets/github-packages-release-v101.png)
 
