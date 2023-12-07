@@ -6,9 +6,9 @@ Extending GitOps: Effortless continuous integration and deployment on Kubernetes
 
 Over the last decade, there have been notable shifts in the process of delivering source code. One of the more recent adaptations on the deployment aspect of this process has been the declarative and version controlled description of an application's desired infrastructure state and configuration - commonly referred to as 'GitOps'. This approach has gained popularity in the context of cloud-native applications and container orchestration platforms, such as Kubernetes, where managing complex, distributed systems can be challenging.
 
-As this desired state is off declarative nature, it points to a specific/static version of that application. Which has great advantages, namely the fact that it makes it easy to roll back to a previous state, audit changes before they are made and maintain a reproducible setup. But how do we move to a newer version of an application without the need for manual version adjustments?
+As this desired state is off declarative nature, it points to a specific/static version of that application. This offers significant benefits, particularly the fact that it is possible to audit changes before they are made, roll back to a previous state and maintain a reproducible setup. Without requiring a pipeline to make changes in the application's state/configuration, how can we move to the more recent application version while avoiding manual version adjustment?
 
-This is where Argo CD Image Updater comes in, it will verify if a more recent version of a container image is available, subsequently triggers the necessary updates of the applicable Kubernetes resources and optionally reflects these changes in the associated version control.
+This is where Argo CD Image Updater comes in; it verifies if a more recent version of a container image is available, and subsequently triggers the necessary updates of the application's Kubernetes resources or optionally these changes in the associated version control.
 
 ## overview:
 
@@ -18,13 +18,13 @@ Prior to diving into the technical implementation, let's establish an overview o
 
 The first part of process starts with a developer modifying the source code of the application and pushing the changes back to the version control system. Subsequently, this action initiates a workflow or pipeline that both constructs and assesses the application. The outcome is an artifact in the form of a container image, which is subsequently pushed to an image registry.
 
-In a second - detached - part of the process, the cluster configuration repository is the single source of truth regarding the the _desired state_ of the application configuration. Argo CD will periodically monitor the Kubernetes cluster to see if the _live state_ differs from the _desired state_. When there is a difference, depending on the synchronization strategy Argo CD will try to revert back to the _desired state_.
+In a second - detached - part of the process, the cluster configuration repository is the single source of truth regarding the the _desired state_ of the application configuration. Argo CD periodically monitors the Kubernetes cluster to see if the _live state_ differs from the _desired state_. When there is a difference, depending on the synchronization strategy Argo CD tries to revert back to the _desired state_.
 
 ![gitops-default-overview](assets/gitops-default-overview.png)
 
 #### extended gitops
 
-Compared to the default process, in this extended variant another Argo CD component is added to the Kubernetes cluster. The Argo CD Image Updater component will verify if a more recent version of a container image exists within the image registry. If such version is identified, the component will either directly or indirectly update the running application. In the next section we'll delve into the configuration options for the Argo CD Image Updater as well as the implementation of the component.
+Compared to the default process, in this extended, variant another Argo CD component is added to the Kubernetes cluster. The Argo CD Image Updater component verifies if a more recent version of a container image exists within the image registry. If such version is identified, the component either directly or indirectly updates the running application. In the next section we'll delve into the configuration options for the Argo CD Image Updater as well as the implementation of the component.
 
 ![gitops-extended-overview](assets/gitops-extended-overview.png)
 
@@ -42,9 +42,9 @@ For this configuration/demonstration the following repositories can be reference
 
 At the moment of writing Argo CD Image Updater supports two methods of propagating the new versions of the images to Argo CD. These methods also referred to as _write back_ methods are `argocd` & `git`. 
 
-- `argocd`: This default _write back_ method is pseudo-persistent - when deleting an application or synchronizing the configuration in version control, any changes made to an application by Argo CD Image Updater will be gone - making it best suitable for imperatively created resources. This default method doesn't require additional configuration.
+- `argocd`: This default _write back_ method is pseudo-persistent - when deleting an application or synchronizing the configuration in version control, any changes made to an application by Argo CD Image Updater are lost - making it best suitable for imperatively created resources. This default method doesn't require additional configuration.
 
-- `git`: The other _write back_ method is the persistent/declarative option, when the a more recent version of a container image is identified, Argo CD Image Updater will store the parameter override along the application's resource manifests. It will store the override in a file named `.argocd-source-<application-name>.yaml`, reducing the risk of a merge conflict in the application's reouces manifests. To change the _write back_ method the an annotation needs to be set on the Argo CD `Application` resource. In addition the branch the to commit back to can optionally be changed from the default value `.spec.source.targetRevision` of the application.
+- `git`: The other _write back_ method is the persistent/declarative option, when the a more recent version of a container image is identified, Argo CD Image Updater stores the parameter override along the application's resource manifests. It stores the override in a file named `.argocd-source-<application-name>.yaml`, reducing the risk of a merge conflict in the application's reouces manifests. To change the _write back_ method the an annotation needs to be set on the Argo CD `Application` resource. In addition the branch the to commit back to can optionally be changed from the default value `.spec.source.targetRevision` of the application.
 
     From an audit trail and a reproducible perspective, this is the desired option. It provides us with the option to have automatic continuous deployment, while keeping these aspects that GitOps is known for.
 
@@ -68,14 +68,14 @@ Before looking at their respective differences, we'll need to know what `mutable
     argocd-image-updater.argoproj.io/image-list: <alias>=<repository-name>/<image-name>[:<version_constraint>]
     ```
 
-- `latest`: Updates the application with the image that has the most recent build date. When a specific build has multiple tags Argo CD Image Updater will pick the lexically descending sorted last tag in the list. Optionally if you want to consider only certain tags, an annotation with a regular expression can be used. Similarly an annotation can be used to ignore a list of tags.
+- `latest`: Updates the application with the image that has the most recent build date. When a specific build has multiple tags Argo CD Image Updater picks the lexically descending sorted last tag in the list. Optionally if you want to consider only certain tags, an annotation with a regular expression can be used. Similarly an annotation can be used to ignore a list of tags.
 
     ```yaml
     argocd-image-updater.argoproj.io/<alias>.update-strategy: latest
     argocd-image-updater.argoproj.io/image-list: <alias>=<repository-name>/<image-name>
     ```
 
-- `digest`: Updates the application based on a change for a mutable tag within the registry. When this strategy is used image digests will be used for updating the application, so the image on the cluster for `<repository-name>/<image-name>:<tag_name>` will appear as `<repository-name>/<image-name>@sha256:<hash>`.
+- `digest`: Updates the application based on a change for a mutable tag within the registry. When this strategy is used image digests are be used for updating the application, so the image on the cluster for `<repository-name>/<image-name>:<tag_name>` appears as `<repository-name>/<image-name>@sha256:<hash>`.
 
     ```yaml
     argocd-image-updater.argoproj.io/<alias>.update-strategy: digest
@@ -93,11 +93,11 @@ Before looking at their respective differences, we'll need to know what `mutable
 
 We'll start out by creating two repositories as can been seen within the overview, a `source code` and a `cluster configuration` repository. Theoretically both could be housed in the same repository, but a separation of concerns is advised. 
 
-The next step would be to setup the continuous integration pipeline to create the artifact, i.e. container image, that will be used as a starting point in the continuous deployment process. In this walkthrough we'll use GitHub for our repository as well as GitHub Actions for our pipeline. However this setup can be made in most popular version control/pipeline options.
+The next step would be to setup the continuous integration pipeline to create the artifact, i.e. container image, that are to be used as a starting point in the continuous deployment process. In this walkthrough we'll use GitHub for our repository as well as GitHub Actions for our pipeline. However this setup can be made in most popular version control/pipeline options.
 
 #### continuous Integration workflow
 
-Within the source code repository under the `.github/worksflows/` directory we'll create a GitHub actions workflow, which we name `continuous-integration.yaml`. This workflow will consist of checking out the source code, building the container image and pushing it to the GitHub Packages Image registry.
+Within the source code repository under the `.github/worksflows/` directory we'll create a GitHub actions workflow, which we name `continuous-integration.yaml`. This workflow consists of checking out the source code, building the container image and pushing it to the GitHub Packages Image registry.
 
 ```yaml
 name: continuous-integration
@@ -158,9 +158,11 @@ jobs:
 For simplicity sake the image registry is made public so that additional authentication from within the cluster isn't needed. You can discover a detailed tutorial on how to make a GitHub Package public [here](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/managing-repository-settings/setting-repository-visibility). If you prefer utilizing a private repository, refer to [this](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/) guide to enable pulling from the private repository within the cluster.
 
 We can see that after we commit to our `main` branch that packages are automatically pushed to our GitHub packages image registry.
+
 ![github-packages-release-main](assets/github-packages-release-main.png)
 
 If we now release everything that is in the main branch with a semantic version of `v1.0.0` we can see the newer version of the application image, where the `sha-<number>` is also placed on the newer image as no new commit was made between the previous push on `main` and the tag.
+
 ![github-packages-release-v100](assets/github-packages-release-v100.png)
 
 #### cluster configuration
@@ -183,7 +185,7 @@ helm create <application-name>
 
 #### argo cd & argo cd image updater installation
 
-We'll start by setting up our Kubernetes cluster, for this demonstration a local cluster will be used, created through minikube. After installing minikube the following command can be ran to start the cluster:
+Start by setting up a Kubernetes cluster, for this demonstration a local cluster is be used, created through minikube - other tools like `kind` or `k3s` can also be used. After installing minikube the following command can be ran to start the cluster:
 
 ```bash
 minikube start
@@ -373,7 +375,6 @@ For the demonstration I decided to disable the automated synchronization policy.
 
 ![argocd-application-deployment-diff](assets/argocd-application-deployment-diff.png)
 
-
 ![argocd-application-deployment-rolling-update](assets/argocd-application-deployment-rolling-update.png)
 
 ![argocd-application-parameter-override](assets/argocd-application-parameter-override.png)
@@ -382,4 +383,9 @@ For the demonstration I decided to disable the automated synchronization policy.
 
 We managed to successfully configure the extended GitOps setup. Any changes made on the application side should be reflected by outputting a container image to the artifact registry, successfully completing the Continuous Integration side. After which in a detached manner the Continuous Deployment process is started by Argo CD Image Updater finding a newer container image in the image registry and updating the declaratively defined image tag for the application. In turn triggering Argo CD to update the application's Kubernetes resource, serving the newer version of the application by updating the deployment with the new image tag.
 
+A possible improvement to the setup demonstrated would be to switch over to the `git` write back method, improving the setup by being more reproducible and having a clear audit trail.
+
 The application used in this demonstration was generated through [Amplication](https://amplication.com), which allows you to generate production-ready backend services - reliably, securely, and consistently.
+
+> [!NOTE]
+> As of writing the blog the Argo CD Image Updater project does not honor the Argo CD's rollback feature and thus automatically updates the application back to the latest version found in the image registry. A solution to this would be to temporary disable the indexing of Argo CD Image Updater for the application and set the `image.tag` in the Helm chart to the desired version.
